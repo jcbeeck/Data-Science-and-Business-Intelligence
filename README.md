@@ -18,8 +18,9 @@ You will learn how to move step-by-step from:
 - **Interpretation of insights** ("revelations")
 - **Actionable recommendations**
 
-## 📚 What You'll Find in This Repository
+## What You'll Find in This Repository
 
+- **BI BOOK (Draft)** specially designed for educational purposes
 - **Synthetic datasets** specially designed for educational purposes
 - **Google Colab notebooks** with clean, well-commented Python scripts
 - **Step-by-step Jupyter notebooks** covering every phase of the BI project
