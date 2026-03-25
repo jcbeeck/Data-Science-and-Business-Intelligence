@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KNN K=5 · Predicciones Mantenimiento · Camiones Mineros</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0c12;--surface:#111520;--surface2:#181d2e;--border:#1e2538;--accent:#f5a623;--accent2:#00d4ff;--ok:#00e676;--warn:#ffab00;--urgent:#ff3d71;--normal:#00e676;--text:#e8ecf4;--muted:#6b7594;--font-display:'Bebas Neue',sans-serif;--font-mono:'Space Mono',monospace;--font-body:'DM Sans',sans-serif}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background-image:repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(30,37,56,.4) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(30,37,56,.4) 40px)}
+header{position:relative;z-index:10;padding:24px 40px 0;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(245,166,35,.06) 0%,transparent 100%)}
+.header-top{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:20px}
+.header-left h1{font-family:var(--font-display);font-size:clamp(28px,4vw,52px);letter-spacing:2px;color:var(--accent);line-height:1}
+.header-left .subtitle{font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:3px;margin-top:6px;text-transform:uppercase}
+.badge-row{display:flex;gap:12px;align-items:center}
+.badge{font-family:var(--font-mono);font-size:10px;padding:4px 10px;border-radius:3px;letter-spacing:1px;text-transform:uppercase;font-weight:700}
+.badge-k{background:rgba(245,166,35,.15);color:var(--accent);border:1px solid rgba(245,166,35,.3)}
+.badge-acc{background:rgba(0,212,255,.12);color:var(--accent2);border:1px solid rgba(0,212,255,.25)}
+.badge-n{background:rgba(107,117,148,.12);color:var(--muted);border:1px solid var(--border)}
+.filters{position:relative;z-index:10;display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:16px 40px;background:var(--surface);border-bottom:1px solid var(--border)}
+.filter-label{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-right:4px}
+select,.btn-filter{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:11px;padding:6px 12px;border-radius:4px;cursor:pointer;transition:border-color .2s,background .2s;appearance:none;-webkit-appearance:none}
+select:hover,.btn-filter:hover{border-color:var(--accent);background:rgba(245,166,35,.06)}
+select:focus{outline:none;border-color:var(--accent2)}
+.filter-sep{width:1px;height:24px;background:var(--border)}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:6px 12px}
+.search-box input{background:none;border:none;color:var(--text);font-family:var(--font-mono);font-size:11px;outline:none;width:120px}
+.search-box input::placeholder{color:var(--muted)}
+main{position:relative;z-index:5;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;padding:24px 40px}
+.kpi-row{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:18px 20px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s}
+.kpi:hover{transform:translateY(-2px);border-color:rgba(245,166,35,.3)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kpi-color,var(--accent))}
+.kpi-label{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.kpi-value{font-family:var(--font-display);font-size:36px;color:var(--kpi-color,var(--text));line-height:1}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;transition:border-color .2s}
+.card:hover{border-color:rgba(0,212,255,.2)}
+.card-title{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.card-title span{color:var(--accent)}
+.card-full{grid-column:1/-1}
+.card-half{grid-column:span 1}
+.card-two-thirds{grid-column:span 2}
+canvas{max-width:100%}
+.table-wrap{overflow:auto;max-height:340px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{font-family:var(--font-mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0;transition:color .15s}
+thead th:hover{color:var(--accent)}
+thead th.sort-asc::after{content:' ↑';color:var(--accent)}
+thead th.sort-desc::after{content:' ↓';color:var(--accent)}
+tbody tr{border-bottom:1px solid rgba(30,37,56,.6);transition:background .15s}
+tbody tr:hover{background:rgba(245,166,35,.04)}
+tbody tr.incorrect{background:rgba(255,61,113,.03)}
+td{padding:8px 12px;white-space:nowrap;font-family:var(--font-mono);font-size:11px;color:var(--text)}
+td.id-col{color:var(--accent2);font-weight:700}
+.status-pill{display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;letter-spacing:.5px;font-weight:700;white-space:nowrap}
+.pill-urgente{background:rgba(255,61,113,.15);color:var(--urgent);border:1px solid rgba(255,61,113,.3)}
+.pill-proximo{background:rgba(255,171,0,.12);color:var(--warn);border:1px solid rgba(255,171,0,.3)}
+.pill-normal{background:rgba(0,230,118,.1);color:var(--normal);border:1px solid rgba(0,230,118,.2)}
+.conf-bar-bg{width:60px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:6px}
+.conf-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent2),var(--ok))}
+.pagination{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+.page-btns{display:flex;gap:4px}
+.page-btn{background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--font-mono);font-size:10px;padding:4px 10px;border-radius:3px;cursor:pointer;transition:all .15s}
+.page-btn:hover{background:rgba(245,166,35,.12);color:var(--accent);border-color:rgba(245,166,35,.3)}
+.page-btn:disabled{opacity:.3;cursor:not-allowed}
+.matrix-grid{display:grid;grid-template-columns:80px repeat(3,1fr);gap:3px;font-family:var(--font-mono);font-size:10px}
+.matrix-cell{display:flex;align-items:center;justify-content:center;border-radius:3px;padding:12px 6px}
+.matrix-header{color:var(--muted);font-size:9px;letter-spacing:1px;text-align:center}
+.matrix-row-header{color:var(--muted);font-size:9px;letter-spacing:1px;text-align:right;padding-right:10px}
+.matrix-data{font-size:22px;font-family:var(--font-display);letter-spacing:1px}
+.matrix-data.diag{outline:1px solid rgba(0,230,118,.4)}
+.scatter-legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--font-mono);font-size:10px;margin-top:10px;justify-content:center}
+.legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
+@keyframes pulse-border{0%,100%{box-shadow:0 0 0 0 rgba(255,61,113,0)}50%{box-shadow:0 0 0 4px rgba(255,61,113,.15)}}
+.urgent-kpi{animation:pulse-border 3s infinite}
+footer{position:relative;z-index:5;text-align:center;padding:12px 40px 24px;font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:1px}
+footer strong{color:var(--accent)}
+@media(max-width:1024px){main{grid-template-columns:1fr 1fr;padding:16px 20px}.kpi-row{grid-template-columns:repeat(3,1fr)}.card-two-thirds{grid-column:span 2}header{padding:20px 20px 0}.filters{padding:12px 20px}}
+@media(max-width:640px){main{grid-template-columns:1fr}.kpi-row{grid-template-columns:1fr 1fr}.card-half,.card-two-thirds{grid-column:1}}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-top">
+    <div class="header-left">
+      <h1>KNN Mantenimiento Minero</h1>
+      <div class="subtitle">Predicciones de estado · Camiones · K-Nearest Neighbors</div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-k">K = 5</span>
+      <span class="badge badge-acc">Acc Global: 73.3%</span>
+      <span class="badge badge-n">N = 150</span>
+    </div>
+  </div>
+</header>
+
+<div class="filters">
+  <span class="filter-label">Filtrar</span>
+  <select id="fModelo" onchange="applyFilters()">
+    <option value="">Todos los modelos</option>
+    <option>BelAZ 75710</option><option>Caterpillar 797F</option>
+    <option>Hitachi EH5000</option><option>Komatsu 960E</option>
+    <option>Liebherr T 282C</option><option>Terex MT6300</option>
+  </select>
+  <select id="fEstado" onchange="applyFilters()">
+    <option value="">Todos los estados</option>
+    <option>Operativo Normal</option>
+    <option>Mantenimiento Próximo</option>
+    <option>Mantenimiento Urgente</option>
+  </select>
+  <select id="fConjunto" onchange="applyFilters()">
+    <option value="">Train + Test</option>
+    <option value="Entrenamiento">Solo Entrenamiento</option>
+    <option value="Prueba">Solo Prueba</option>
+  </select>
+  <select id="fResultado" onchange="applyFilters()">
+    <option value="">Todos</option>
+    <option value="1">Solo Correctos ✓</option>
+    <option value="0">Solo Incorrectos ✗</option>
+  </select>
+  <div class="filter-sep"></div>
+  <div class="search-box">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7594" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="fSearch" placeholder="Buscar ID..." oninput="applyFilters()">
+  </div>
+  <div class="filter-sep"></div>
+  <button class="btn-filter" onclick="resetFilters()">↺ Resetear</button>
+</div>
+
+<main>
+  <div class="kpi-row">
+    <div class="kpi" style="--kpi-color:var(--accent2)"><div class="kpi-label">Registros</div><div class="kpi-value" id="kpi-total">150</div><div class="kpi-sub">Dataset filtrado</div></div>
+    <div class="kpi" style="--kpi-color:var(--ok)"><div class="kpi-label">Accuracy</div><div class="kpi-value" id="kpi-acc">—</div><div class="kpi-sub" id="kpi-acc-sub">Sobre selección</div></div>
+    <div class="kpi" style="--kpi-color:var(--normal)"><div class="kpi-label">Operativo Normal</div><div class="kpi-value" id="kpi-normal">26</div><div class="kpi-sub">Estado real</div></div>
+    <div class="kpi" style="--kpi-color:var(--warn)"><div class="kpi-label">Mant. Próximo</div><div class="kpi-value" id="kpi-proximo">72</div><div class="kpi-sub">Estado real</div></div>
+    <div class="kpi urgent-kpi" style="--kpi-color:var(--urgent)"><div class="kpi-label">Mant. Urgente</div><div class="kpi-value" id="kpi-urgente">52</div><div class="kpi-sub">Estado real</div></div>
+  </div>
+
+  <div class="card card-half">
+    <div class="card-title">Estado Real <span id="ct-dist-n">150</span></div>
+    <canvas id="chartDist" height="220"></canvas>
+  </div>
+
+  <div class="card card-two-thirds">
+    <div class="card-title">Precisión por Modelo <span id="ct-modelo-n">150</span></div>
+    <canvas id="chartModelo" height="220"></canvas>
+  </div>
+
+  <div class="card card-half">
+    <div class="card-title">Distribución de Confianza KNN</div>
+    <canvas id="chartConf" height="220"></canvas>
+  </div>
+
+  <div class="card card-two-thirds">
+    <div class="card-title">Dispersión: Temp. Motor vs Vibración <span id="ct-scatter-n"></span></div>
+    <canvas id="chartScatter" height="220"></canvas>
+    <div class="scatter-legend">
+      <span><span class="legend-dot" style="background:var(--normal)"></span>Operativo Normal</span>
+      <span><span class="legend-dot" style="background:var(--warn)"></span>Mant. Próximo</span>
+      <span><span class="legend-dot" style="background:var(--urgent)"></span>Mant. Urgente</span>
+    </div>
+  </div>
+
+  <div class="card card-half">
+    <div class="card-title">Horas Op. Promedio por Estado</div>
+    <canvas id="chartHoras" height="220"></canvas>
+  </div>
+
+  <div class="card card-half">
+    <div class="card-title">Matriz de Confusión</div>
+    <div id="confMatrix"></div>
+  </div>
+
+  <div class="card card-two-thirds">
+    <div class="card-title">Distribución por Año de Fabricación</div>
+    <canvas id="chartAnio" height="200"></canvas>
+  </div>
+
+  <div class="card card-full">
+    <div class="card-title">Registros Detallados <span id="table-count">150 registros</span></div>
+    <div class="table-wrap">
+      <table id="dataTable">
+        <thead><tr>
+          <th data-col="id" onclick="sortTable('id')">ID</th>
+          <th data-col="modelo" onclick="sortTable('modelo')">Modelo</th>
+          <th data-col="anio" onclick="sortTable('anio')">Año</th>
+          <th data-col="horas_op" onclick="sortTable('horas_op')">Horas Op.</th>
+          <th data-col="temp_motor" onclick="sortTable('temp_motor')">Temp °C</th>
+          <th data-col="presion_aceite" onclick="sortTable('presion_aceite')">Presión</th>
+          <th data-col="vibracion" onclick="sortTable('vibracion')">Vibración</th>
+          <th data-col="estado_real" onclick="sortTable('estado_real')">Estado Real</th>
+          <th data-col="prediccion_knn" onclick="sortTable('prediccion_knn')">Predicción KNN</th>
+          <th data-col="confianza" onclick="sortTable('confianza')">Confianza</th>
+          <th data-col="conjunto" onclick="sortTable('conjunto')">Conjunto</th>
+          <th>Resultado</th>
+        </tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <div id="page-info">Mostrando 1–25 de 150</div>
+      <div class="page-btns">
+        <button class="page-btn" id="btn-prev" onclick="changePage(-1)">← Anterior</button>
+        <button class="page-btn" id="btn-next" onclick="changePage(1)">Siguiente →</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>Dashboard generado · <strong>KNN K=5</strong> · Predicciones de Mantenimiento · Camiones Mineros · 150 registros</footer>
+
+<script>
+const RAW=[{"id":"CAM-001","modelo":"BelAZ 75710","anio":2011,"horas_op":1319,"temp_motor":119.5,"presion_aceite":3.5,"combustible":571.2,"velocidad":14.6,"carga":322.2,"vibracion":6.8,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-002","modelo":"Komatsu 960E","anio":2013,"horas_op":17059,"temp_motor":111.1,"presion_aceite":4.7,"combustible":2724.3,"velocidad":41.6,"carga":225.9,"vibracion":5.7,"estado_real":"Operativo Normal","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Prueba","correcto":0},{"id":"CAM-003","modelo":"BelAZ 75710","anio":2016,"horas_op":11649,"temp_motor":91.7,"presion_aceite":3.4,"combustible":2901.7,"velocidad":14.6,"carga":214.0,"vibracion":4.6,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-004","modelo":"BelAZ 75710","anio":2017,"horas_op":18071,"temp_motor":82.5,"presion_aceite":6.2,"combustible":344.3,"velocidad":23.2,"carga":288.6,"vibracion":10.7,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Prueba","correcto":1},{"id":"CAM-005","modelo":"Caterpillar 797F","anio":2020,"horas_op":7967,"temp_motor":121.4,"presion_aceite":6.4,"combustible":3244.6,"velocidad":49.0,"carga":214.0,"vibracion":5.7,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Urgente","confianza":0.4,"conjunto":"Prueba","correcto":0},{"id":"CAM-006","modelo":"Komatsu 960E","anio":2020,"horas_op":9248,"temp_motor":117.1,"presion_aceite":5.2,"combustible":316.7,"velocidad":38.6,"carga":260.2,"vibracion":3.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-007","modelo":"BelAZ 75710","anio":2018,"horas_op":7696,"temp_motor":116.1,"presion_aceite":5.9,"combustible":2948.4,"velocidad":20.3,"carga":109.6,"vibracion":4.1,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-008","modelo":"BelAZ 75710","anio":2015,"horas_op":7467,"temp_motor":114.3,"presion_aceite":4.1,"combustible":3465.8,"velocidad":30.6,"carga":179.5,"vibracion":3.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-009","modelo":"Hitachi EH5000","anio":2019,"horas_op":13587,"temp_motor":96.7,"presion_aceite":6.5,"combustible":566.7,"velocidad":32.2,"carga":326.7,"vibracion":10.4,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Prueba","correcto":0},{"id":"CAM-010","modelo":"Hitachi EH5000","anio":2019,"horas_op":2581,"temp_motor":98.1,"presion_aceite":4.9,"combustible":1798.2,"velocidad":21.3,"carga":266.0,"vibracion":11.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-011","modelo":"Liebherr T 282C","anio":2022,"horas_op":21503,"temp_motor":95.4,"presion_aceite":3.7,"combustible":640.7,"velocidad":10.1,"carga":316.6,"vibracion":8.8,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-012","modelo":"Caterpillar 797F","anio":2023,"horas_op":20989,"temp_motor":92.9,"presion_aceite":5.1,"combustible":2324.5,"velocidad":16.9,"carga":328.8,"vibracion":6.7,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-013","modelo":"Terex MT6300","anio":2015,"horas_op":16510,"temp_motor":76.2,"presion_aceite":6.2,"combustible":3332.0,"velocidad":47.4,"carga":192.3,"vibracion":1.2,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.8,"conjunto":"Prueba","correcto":1},{"id":"CAM-014","modelo":"BelAZ 75710","anio":2017,"horas_op":2767,"temp_motor":133.7,"presion_aceite":4.6,"combustible":519.7,"velocidad":39.7,"carga":384.1,"vibracion":2.4,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-015","modelo":"Terex MT6300","anio":2022,"horas_op":24418,"temp_motor":116.4,"presion_aceite":5.3,"combustible":1540.2,"velocidad":40.2,"carga":212.0,"vibracion":10.8,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-016","modelo":"Liebherr T 282C","anio":2010,"horas_op":19777,"temp_motor":108.2,"presion_aceite":4.8,"combustible":76.9,"velocidad":41.9,"carga":117.7,"vibracion":1.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-017","modelo":"Komatsu 960E","anio":2014,"horas_op":22421,"temp_motor":104.1,"presion_aceite":4.7,"combustible":2751.7,"velocidad":49.7,"carga":272.9,"vibracion":3.3,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-018","modelo":"Caterpillar 797F","anio":2020,"horas_op":14624,"temp_motor":96.3,"presion_aceite":4.1,"combustible":3276.4,"velocidad":12.4,"carga":296.0,"vibracion":7.9,"estado_real":"Operativo Normal","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Prueba","correcto":0},{"id":"CAM-019","modelo":"Komatsu 960E","anio":2013,"horas_op":6732,"temp_motor":107.2,"presion_aceite":3.1,"combustible":735.3,"velocidad":30.8,"carga":362.3,"vibracion":1.4,"estado_real":"Operativo Normal","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-020","modelo":"Caterpillar 797F","anio":2020,"horas_op":18213,"temp_motor":125.2,"presion_aceite":6.4,"combustible":3510.0,"velocidad":48.2,"carga":149.9,"vibracion":6.1,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-021","modelo":"Komatsu 960E","anio":2016,"horas_op":570,"temp_motor":134.1,"presion_aceite":3.6,"combustible":2978.5,"velocidad":30.5,"carga":226.9,"vibracion":11.5,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-022","modelo":"Komatsu 960E","anio":2013,"horas_op":10222,"temp_motor":88.1,"presion_aceite":2.7,"combustible":2798.0,"velocidad":12.7,"carga":194.1,"vibracion":1.1,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Prueba","correcto":1},{"id":"CAM-023","modelo":"Komatsu 960E","anio":2010,"horas_op":17140,"temp_motor":79.8,"presion_aceite":3.2,"combustible":2272.5,"velocidad":40.4,"carga":170.6,"vibracion":1.9,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-024","modelo":"Caterpillar 797F","anio":2019,"horas_op":3186,"temp_motor":100.2,"presion_aceite":4.8,"combustible":2002.6,"velocidad":52.1,"carga":161.3,"vibracion":8.7,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-025","modelo":"BelAZ 75710","anio":2014,"horas_op":15482,"temp_motor":94.0,"presion_aceite":5.5,"combustible":320.9,"velocidad":30.6,"carga":399.5,"vibracion":12.0,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Prueba","correcto":1},{"id":"CAM-026","modelo":"Komatsu 960E","anio":2015,"horas_op":2754,"temp_motor":127.8,"presion_aceite":4.0,"combustible":639.2,"velocidad":47.5,"carga":311.1,"vibracion":7.5,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-027","modelo":"BelAZ 75710","anio":2023,"horas_op":18673,"temp_motor":93.0,"presion_aceite":5.2,"combustible":3556.9,"velocidad":16.0,"carga":134.6,"vibracion":1.7,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-028","modelo":"Komatsu 960E","anio":2021,"horas_op":11735,"temp_motor":87.2,"presion_aceite":5.0,"combustible":1036.0,"velocidad":32.0,"carga":371.6,"vibracion":10.2,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-029","modelo":"Caterpillar 797F","anio":2010,"horas_op":11429,"temp_motor":121.3,"presion_aceite":5.0,"combustible":1028.4,"velocidad":43.4,"carga":265.5,"vibracion":5.4,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-030","modelo":"Komatsu 960E","anio":2018,"horas_op":1680,"temp_motor":125.1,"presion_aceite":4.8,"combustible":603.1,"velocidad":15.7,"carga":192.5,"vibracion":10.8,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-031","modelo":"Komatsu 960E","anio":2020,"horas_op":8676,"temp_motor":115.0,"presion_aceite":3.9,"combustible":2141.2,"velocidad":49.4,"carga":392.2,"vibracion":9.1,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-032","modelo":"Komatsu 960E","anio":2016,"horas_op":1312,"temp_motor":85.8,"presion_aceite":6.2,"combustible":2972.2,"velocidad":28.5,"carga":301.0,"vibracion":8.9,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Prueba","correcto":1},{"id":"CAM-033","modelo":"Caterpillar 797F","anio":2016,"horas_op":1768,"temp_motor":126.5,"presion_aceite":3.4,"combustible":3100.0,"velocidad":30.7,"carga":191.6,"vibracion":9.7,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-034","modelo":"Hitachi EH5000","anio":2015,"horas_op":9629,"temp_motor":126.9,"presion_aceite":6.4,"combustible":1092.5,"velocidad":38.9,"carga":219.9,"vibracion":11.8,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-035","modelo":"Liebherr T 282C","anio":2012,"horas_op":19524,"temp_motor":132.8,"presion_aceite":3.6,"combustible":454.9,"velocidad":29.6,"carga":318.6,"vibracion":4.1,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-036","modelo":"Terex MT6300","anio":2013,"horas_op":8846,"temp_motor":77.7,"presion_aceite":4.2,"combustible":1991.9,"velocidad":46.3,"carga":306.1,"vibracion":11.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Prueba","correcto":0},{"id":"CAM-037","modelo":"Caterpillar 797F","anio":2020,"horas_op":11319,"temp_motor":112.4,"presion_aceite":5.2,"combustible":515.5,"velocidad":50.5,"carga":252.1,"vibracion":8.2,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-038","modelo":"Komatsu 960E","anio":2013,"horas_op":14277,"temp_motor":114.9,"presion_aceite":4.0,"combustible":2844.3,"velocidad":17.8,"carga":270.7,"vibracion":5.2,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.6,"conjunto":"Prueba","correcto":1},{"id":"CAM-039","modelo":"Hitachi EH5000","anio":2022,"horas_op":19504,"temp_motor":111.4,"presion_aceite":3.8,"combustible":1700.1,"velocidad":40.4,"carga":253.4,"vibracion":9.6,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-040","modelo":"Caterpillar 797F","anio":2014,"horas_op":17390,"temp_motor":114.8,"presion_aceite":5.0,"combustible":398.8,"velocidad":52.8,"carga":170.5,"vibracion":4.1,"estado_real":"Operativo Normal","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-041","modelo":"Komatsu 960E","anio":2017,"horas_op":20530,"temp_motor":126.0,"presion_aceite":2.8,"combustible":1597.9,"velocidad":38.3,"carga":158.3,"vibracion":8.5,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":1.0,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-042","modelo":"BelAZ 75710","anio":2010,"horas_op":3992,"temp_motor":121.7,"presion_aceite":3.4,"combustible":3053.4,"velocidad":41.3,"carga":239.4,"vibracion":6.9,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Prueba","correcto":1},{"id":"CAM-043","modelo":"Hitachi EH5000","anio":2020,"horas_op":17904,"temp_motor":134.3,"presion_aceite":4.9,"combustible":3598.4,"velocidad":50.1,"carga":283.8,"vibracion":8.8,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-044","modelo":"Hitachi EH5000","anio":2012,"horas_op":24868,"temp_motor":126.7,"presion_aceite":4.3,"combustible":2857.9,"velocidad":47.8,"carga":183.2,"vibracion":9.4,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-045","modelo":"Caterpillar 797F","anio":2021,"horas_op":9862,"temp_motor":89.1,"presion_aceite":3.8,"combustible":3385.5,"velocidad":13.6,"carga":145.2,"vibracion":4.9,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.6,"conjunto":"Prueba","correcto":1},{"id":"CAM-046","modelo":"Hitachi EH5000","anio":2015,"horas_op":18280,"temp_motor":103.0,"presion_aceite":2.8,"combustible":3160.8,"velocidad":27.5,"carga":330.9,"vibracion":11.4,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-047","modelo":"Hitachi EH5000","anio":2017,"horas_op":693,"temp_motor":131.6,"presion_aceite":3.7,"combustible":1506.6,"velocidad":50.1,"carga":350.7,"vibracion":6.7,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-048","modelo":"Hitachi EH5000","anio":2013,"horas_op":9443,"temp_motor":101.2,"presion_aceite":2.6,"combustible":1305.4,"velocidad":40.6,"carga":221.3,"vibracion":2.4,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-049","modelo":"Terex MT6300","anio":2010,"horas_op":13411,"temp_motor":110.5,"presion_aceite":5.2,"combustible":363.5,"velocidad":29.3,"carga":360.1,"vibracion":2.6,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-050","modelo":"Liebherr T 282C","anio":2015,"horas_op":12923,"temp_motor":91.7,"presion_aceite":6.3,"combustible":1624.5,"velocidad":47.6,"carga":241.1,"vibracion":9.1,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-051","modelo":"BelAZ 75710","anio":2011,"horas_op":21856,"temp_motor":77.4,"presion_aceite":2.6,"combustible":973.6,"velocidad":47.8,"carga":286.4,"vibracion":3.2,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-052","modelo":"Hitachi EH5000","anio":2021,"horas_op":8896,"temp_motor":121.0,"presion_aceite":3.2,"combustible":2318.1,"velocidad":43.7,"carga":134.4,"vibracion":9.9,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-053","modelo":"Liebherr T 282C","anio":2019,"horas_op":22695,"temp_motor":129.5,"presion_aceite":4.0,"combustible":3566.4,"velocidad":18.9,"carga":277.6,"vibracion":10.1,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Prueba","correcto":1},{"id":"CAM-054","modelo":"BelAZ 75710","anio":2019,"horas_op":4466,"temp_motor":122.8,"presion_aceite":4.8,"combustible":203.4,"velocidad":34.0,"carga":298.5,"vibracion":1.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Prueba","correcto":1},{"id":"CAM-055","modelo":"Hitachi EH5000","anio":2011,"horas_op":14705,"temp_motor":132.6,"presion_aceite":5.0,"combustible":3145.2,"velocidad":41.8,"carga":230.6,"vibracion":8.9,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Prueba","correcto":1},{"id":"CAM-056","modelo":"Hitachi EH5000","anio":2017,"horas_op":14772,"temp_motor":124.5,"presion_aceite":4.9,"combustible":1253.8,"velocidad":21.0,"carga":380.4,"vibracion":3.7,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-057","modelo":"Terex MT6300","anio":2020,"horas_op":12918,"temp_motor":95.2,"presion_aceite":4.5,"combustible":1263.9,"velocidad":31.9,"carga":206.4,"vibracion":3.5,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-058","modelo":"Terex MT6300","anio":2010,"horas_op":17428,"temp_motor":131.9,"presion_aceite":2.8,"combustible":2739.5,"velocidad":32.0,"carga":327.4,"vibracion":8.4,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Prueba","correcto":1},{"id":"CAM-059","modelo":"Caterpillar 797F","anio":2014,"horas_op":7761,"temp_motor":99.3,"presion_aceite":3.5,"combustible":2529.9,"velocidad":26.6,"carga":266.0,"vibracion":4.5,"estado_real":"Operativo Normal","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-060","modelo":"BelAZ 75710","anio":2017,"horas_op":9377,"temp_motor":93.4,"presion_aceite":3.4,"combustible":2744.0,"velocidad":24.2,"carga":322.9,"vibracion":11.4,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-061","modelo":"Liebherr T 282C","anio":2021,"horas_op":19819,"temp_motor":133.6,"presion_aceite":4.6,"combustible":1107.0,"velocidad":14.5,"carga":158.2,"vibracion":3.1,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-062","modelo":"Komatsu 960E","anio":2014,"horas_op":1991,"temp_motor":133.5,"presion_aceite":4.7,"combustible":2654.9,"velocidad":15.7,"carga":360.5,"vibracion":6.2,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-063","modelo":"Hitachi EH5000","anio":2017,"horas_op":11664,"temp_motor":86.1,"presion_aceite":2.7,"combustible":3564.9,"velocidad":31.5,"carga":346.6,"vibracion":5.1,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Operativo Normal","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-064","modelo":"Komatsu 960E","anio":2012,"horas_op":18943,"temp_motor":131.9,"presion_aceite":2.8,"combustible":977.0,"velocidad":35.1,"carga":224.9,"vibracion":7.4,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Prueba","correcto":1},{"id":"CAM-065","modelo":"Hitachi EH5000","anio":2017,"horas_op":10243,"temp_motor":126.6,"presion_aceite":6.5,"combustible":1190.6,"velocidad":37.9,"carga":282.9,"vibracion":9.0,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-066","modelo":"Liebherr T 282C","anio":2020,"horas_op":3160,"temp_motor":84.4,"presion_aceite":3.2,"combustible":330.4,"velocidad":10.1,"carga":235.2,"vibracion":7.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Prueba","correcto":1},{"id":"CAM-067","modelo":"Liebherr T 282C","anio":2021,"horas_op":15377,"temp_motor":79.3,"presion_aceite":3.4,"combustible":1038.1,"velocidad":45.6,"carga":276.9,"vibracion":9.7,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-068","modelo":"BelAZ 75710","anio":2012,"horas_op":9204,"temp_motor":124.6,"presion_aceite":2.8,"combustible":669.7,"velocidad":23.8,"carga":324.7,"vibracion":7.0,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-069","modelo":"Liebherr T 282C","anio":2021,"horas_op":13689,"temp_motor":131.6,"presion_aceite":4.5,"combustible":1894.3,"velocidad":13.6,"carga":112.0,"vibracion":5.5,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-070","modelo":"Komatsu 960E","anio":2020,"horas_op":19348,"temp_motor":110.2,"presion_aceite":2.6,"combustible":2906.4,"velocidad":47.0,"carga":272.9,"vibracion":9.3,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Prueba","correcto":1},{"id":"CAM-071","modelo":"Liebherr T 282C","anio":2012,"horas_op":19680,"temp_motor":101.2,"presion_aceite":5.8,"combustible":3669.4,"velocidad":31.2,"carga":222.5,"vibracion":4.2,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-072","modelo":"BelAZ 75710","anio":2017,"horas_op":9944,"temp_motor":114.8,"presion_aceite":4.1,"combustible":2890.5,"velocidad":11.7,"carga":126.4,"vibracion":3.4,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-073","modelo":"Caterpillar 797F","anio":2020,"horas_op":18279,"temp_motor":102.7,"presion_aceite":2.7,"combustible":1986.4,"velocidad":38.0,"carga":249.5,"vibracion":5.6,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Prueba","correcto":1},{"id":"CAM-074","modelo":"Liebherr T 282C","anio":2017,"horas_op":23380,"temp_motor":104.1,"presion_aceite":2.6,"combustible":2403.1,"velocidad":46.0,"carga":312.9,"vibracion":4.1,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-075","modelo":"Caterpillar 797F","anio":2017,"horas_op":4349,"temp_motor":113.9,"presion_aceite":3.1,"combustible":3533.5,"velocidad":23.1,"carga":311.6,"vibracion":5.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-076","modelo":"Terex MT6300","anio":2012,"horas_op":13069,"temp_motor":86.4,"presion_aceite":4.9,"combustible":2837.4,"velocidad":16.1,"carga":120.9,"vibracion":9.4,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Prueba","correcto":0},{"id":"CAM-077","modelo":"Liebherr T 282C","anio":2023,"horas_op":584,"temp_motor":92.0,"presion_aceite":3.7,"combustible":2242.2,"velocidad":55.0,"carga":246.9,"vibracion":2.2,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-078","modelo":"Terex MT6300","anio":2016,"horas_op":15420,"temp_motor":131.0,"presion_aceite":6.0,"combustible":3713.2,"velocidad":20.7,"carga":214.9,"vibracion":10.3,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Prueba","correcto":0},{"id":"CAM-079","modelo":"BelAZ 75710","anio":2022,"horas_op":12992,"temp_motor":98.2,"presion_aceite":5.2,"combustible":3115.5,"velocidad":54.1,"carga":248.6,"vibracion":0.9,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":1.0,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-080","modelo":"Hitachi EH5000","anio":2011,"horas_op":17734,"temp_motor":129.6,"presion_aceite":2.6,"combustible":588.4,"velocidad":49.2,"carga":391.0,"vibracion":1.4,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-081","modelo":"BelAZ 75710","anio":2016,"horas_op":21793,"temp_motor":79.8,"presion_aceite":3.8,"combustible":2568.7,"velocidad":34.0,"carga":386.2,"vibracion":7.7,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-082","modelo":"Caterpillar 797F","anio":2019,"horas_op":2742,"temp_motor":89.1,"presion_aceite":5.2,"combustible":1123.4,"velocidad":20.2,"carga":127.1,"vibracion":11.8,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-083","modelo":"Hitachi EH5000","anio":2012,"horas_op":23241,"temp_motor":93.0,"presion_aceite":2.6,"combustible":1261.5,"velocidad":12.5,"carga":207.5,"vibracion":5.5,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-084","modelo":"Komatsu 960E","anio":2012,"horas_op":6236,"temp_motor":79.7,"presion_aceite":6.0,"combustible":2364.6,"velocidad":20.8,"carga":373.8,"vibracion":2.1,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-085","modelo":"BelAZ 75710","anio":2010,"horas_op":15745,"temp_motor":129.1,"presion_aceite":5.2,"combustible":640.0,"velocidad":29.9,"carga":203.7,"vibracion":7.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Prueba","correcto":0},{"id":"CAM-086","modelo":"Hitachi EH5000","anio":2023,"horas_op":10399,"temp_motor":87.0,"presion_aceite":4.0,"combustible":1854.8,"velocidad":20.7,"carga":271.6,"vibracion":7.1,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-087","modelo":"Hitachi EH5000","anio":2014,"horas_op":765,"temp_motor":109.0,"presion_aceite":5.2,"combustible":2831.3,"velocidad":12.2,"carga":281.9,"vibracion":6.2,"estado_real":"Operativo Normal","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Prueba","correcto":0},{"id":"CAM-088","modelo":"Terex MT6300","anio":2022,"horas_op":12044,"temp_motor":88.1,"presion_aceite":3.3,"combustible":986.1,"velocidad":44.0,"carga":330.2,"vibracion":8.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-089","modelo":"BelAZ 75710","anio":2010,"horas_op":10623,"temp_motor":122.3,"presion_aceite":2.6,"combustible":1412.8,"velocidad":15.9,"carga":372.9,"vibracion":4.3,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":1.0,"conjunto":"Prueba","correcto":1},{"id":"CAM-090","modelo":"Liebherr T 282C","anio":2018,"horas_op":16942,"temp_motor":129.8,"presion_aceite":5.8,"combustible":1009.8,"velocidad":47.1,"carga":244.6,"vibracion":9.8,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-091","modelo":"Hitachi EH5000","anio":2011,"horas_op":5112,"temp_motor":120.2,"presion_aceite":3.4,"combustible":2576.1,"velocidad":40.3,"carga":219.2,"vibracion":10.2,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-092","modelo":"Caterpillar 797F","anio":2014,"horas_op":18082,"temp_motor":82.4,"presion_aceite":4.0,"combustible":2847.6,"velocidad":21.8,"carga":214.3,"vibracion":7.8,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-093","modelo":"Caterpillar 797F","anio":2019,"horas_op":18896,"temp_motor":94.7,"presion_aceite":4.9,"combustible":2469.0,"velocidad":38.6,"carga":239.3,"vibracion":8.6,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-094","modelo":"Caterpillar 797F","anio":2014,"horas_op":16642,"temp_motor":82.0,"presion_aceite":3.4,"combustible":2057.7,"velocidad":27.5,"carga":211.3,"vibracion":11.4,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-095","modelo":"BelAZ 75710","anio":2021,"horas_op":5563,"temp_motor":128.1,"presion_aceite":5.1,"combustible":3163.8,"velocidad":37.7,"carga":381.7,"vibracion":3.7,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-096","modelo":"Komatsu 960E","anio":2023,"horas_op":12384,"temp_motor":81.0,"presion_aceite":5.2,"combustible":2083.6,"velocidad":54.0,"carga":207.6,"vibracion":5.1,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-097","modelo":"Caterpillar 797F","anio":2020,"horas_op":7450,"temp_motor":113.5,"presion_aceite":4.9,"combustible":129.8,"velocidad":45.4,"carga":173.1,"vibracion":1.9,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-098","modelo":"Komatsu 960E","anio":2019,"horas_op":7576,"temp_motor":123.8,"presion_aceite":3.4,"combustible":2942.3,"velocidad":45.5,"carga":278.8,"vibracion":3.7,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-099","modelo":"Liebherr T 282C","anio":2022,"horas_op":6217,"temp_motor":81.6,"presion_aceite":6.0,"combustible":542.3,"velocidad":26.1,"carga":336.5,"vibracion":7.3,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-100","modelo":"BelAZ 75710","anio":2016,"horas_op":17738,"temp_motor":81.8,"presion_aceite":2.8,"combustible":1724.3,"velocidad":26.3,"carga":278.1,"vibracion":5.7,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-101","modelo":"Terex MT6300","anio":2014,"horas_op":15509,"temp_motor":113.6,"presion_aceite":2.6,"combustible":3779.7,"velocidad":48.1,"carga":227.9,"vibracion":1.7,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Operativo Normal","confianza":0.8,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-102","modelo":"Liebherr T 282C","anio":2019,"horas_op":5360,"temp_motor":78.9,"presion_aceite":3.6,"combustible":2414.5,"velocidad":34.7,"carga":197.6,"vibracion":11.9,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-103","modelo":"Hitachi EH5000","anio":2011,"horas_op":23495,"temp_motor":81.9,"presion_aceite":5.1,"combustible":3328.2,"velocidad":34.8,"carga":359.6,"vibracion":5.5,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Prueba","correcto":1},{"id":"CAM-104","modelo":"Hitachi EH5000","anio":2016,"horas_op":24407,"temp_motor":80.7,"presion_aceite":4.2,"combustible":2534.2,"velocidad":26.8,"carga":145.8,"vibracion":11.1,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":1.0,"conjunto":"Prueba","correcto":1},{"id":"CAM-105","modelo":"Hitachi EH5000","anio":2011,"horas_op":24898,"temp_motor":119.3,"presion_aceite":5.8,"combustible":2128.0,"velocidad":36.4,"carga":268.5,"vibracion":4.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-106","modelo":"Hitachi EH5000","anio":2023,"horas_op":24127,"temp_motor":78.1,"presion_aceite":3.6,"combustible":1217.0,"velocidad":14.7,"carga":252.2,"vibracion":2.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-107","modelo":"Terex MT6300","anio":2015,"horas_op":4264,"temp_motor":120.8,"presion_aceite":4.8,"combustible":3065.0,"velocidad":48.0,"carga":392.4,"vibracion":9.9,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-108","modelo":"Terex MT6300","anio":2020,"horas_op":23223,"temp_motor":91.0,"presion_aceite":3.2,"combustible":2674.6,"velocidad":23.9,"carga":201.9,"vibracion":0.6,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-109","modelo":"Caterpillar 797F","anio":2012,"horas_op":24780,"temp_motor":113.0,"presion_aceite":2.6,"combustible":2836.7,"velocidad":19.7,"carga":225.9,"vibracion":4.4,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-110","modelo":"Terex MT6300","anio":2011,"horas_op":2223,"temp_motor":84.3,"presion_aceite":5.5,"combustible":235.9,"velocidad":13.7,"carga":232.9,"vibracion":5.4,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-111","modelo":"Terex MT6300","anio":2011,"horas_op":11810,"temp_motor":100.8,"presion_aceite":3.6,"combustible":2584.1,"velocidad":31.9,"carga":300.1,"vibracion":1.0,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":1.0,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-112","modelo":"Komatsu 960E","anio":2014,"horas_op":7421,"temp_motor":121.0,"presion_aceite":5.6,"combustible":1131.1,"velocidad":15.4,"carga":249.2,"vibracion":5.5,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-113","modelo":"Terex MT6300","anio":2018,"horas_op":22390,"temp_motor":123.4,"presion_aceite":2.8,"combustible":3268.7,"velocidad":11.9,"carga":105.6,"vibracion":11.1,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-114","modelo":"Hitachi EH5000","anio":2021,"horas_op":21476,"temp_motor":100.1,"presion_aceite":3.0,"combustible":127.9,"velocidad":24.6,"carga":340.4,"vibracion":7.6,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-115","modelo":"Hitachi EH5000","anio":2023,"horas_op":3968,"temp_motor":89.6,"presion_aceite":4.9,"combustible":2007.0,"velocidad":27.8,"carga":193.1,"vibracion":4.4,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-116","modelo":"BelAZ 75710","anio":2011,"horas_op":17886,"temp_motor":105.6,"presion_aceite":6.1,"combustible":1354.9,"velocidad":42.7,"carga":345.7,"vibracion":9.9,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-117","modelo":"Komatsu 960E","anio":2019,"horas_op":5509,"temp_motor":120.6,"presion_aceite":5.1,"combustible":711.6,"velocidad":44.8,"carga":248.2,"vibracion":9.2,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-118","modelo":"BelAZ 75710","anio":2020,"horas_op":20964,"temp_motor":94.4,"presion_aceite":6.4,"combustible":1230.8,"velocidad":29.8,"carga":240.7,"vibracion":7.8,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-119","modelo":"Terex MT6300","anio":2011,"horas_op":10671,"temp_motor":102.7,"presion_aceite":2.6,"combustible":1427.2,"velocidad":22.9,"carga":293.4,"vibracion":11.7,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":1.0,"conjunto":"Prueba","correcto":1},{"id":"CAM-120","modelo":"Hitachi EH5000","anio":2019,"horas_op":18663,"temp_motor":132.3,"presion_aceite":5.5,"combustible":203.2,"velocidad":50.9,"carga":271.5,"vibracion":2.7,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-121","modelo":"Hitachi EH5000","anio":2011,"horas_op":11753,"temp_motor":133.9,"presion_aceite":2.8,"combustible":2463.3,"velocidad":11.8,"carga":312.3,"vibracion":11.9,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-122","modelo":"Liebherr T 282C","anio":2014,"horas_op":13194,"temp_motor":99.5,"presion_aceite":3.9,"combustible":2283.1,"velocidad":45.5,"carga":294.2,"vibracion":1.3,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-123","modelo":"Liebherr T 282C","anio":2021,"horas_op":22014,"temp_motor":132.9,"presion_aceite":4.9,"combustible":611.6,"velocidad":13.7,"carga":299.1,"vibracion":11.0,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-124","modelo":"Hitachi EH5000","anio":2012,"horas_op":19998,"temp_motor":117.5,"presion_aceite":2.8,"combustible":2137.6,"velocidad":39.0,"carga":198.5,"vibracion":2.0,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-125","modelo":"Terex MT6300","anio":2011,"horas_op":21668,"temp_motor":115.2,"presion_aceite":4.5,"combustible":118.1,"velocidad":23.9,"carga":385.4,"vibracion":4.4,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Prueba","correcto":1},{"id":"CAM-126","modelo":"Komatsu 960E","anio":2011,"horas_op":10192,"temp_motor":125.7,"presion_aceite":2.9,"combustible":2929.2,"velocidad":47.6,"carga":365.1,"vibracion":0.9,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Operativo Normal","confianza":0.6,"conjunto":"Prueba","correcto":0},{"id":"CAM-127","modelo":"Terex MT6300","anio":2016,"horas_op":5554,"temp_motor":84.7,"presion_aceite":5.8,"combustible":2930.1,"velocidad":46.4,"carga":149.7,"vibracion":5.5,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-128","modelo":"Hitachi EH5000","anio":2019,"horas_op":9836,"temp_motor":120.1,"presion_aceite":5.6,"combustible":924.0,"velocidad":20.8,"carga":389.7,"vibracion":9.5,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-129","modelo":"Terex MT6300","anio":2017,"horas_op":15628,"temp_motor":121.2,"presion_aceite":5.6,"combustible":1928.4,"velocidad":28.8,"carga":148.6,"vibracion":2.8,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Operativo Normal","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-130","modelo":"BelAZ 75710","anio":2017,"horas_op":12663,"temp_motor":108.3,"presion_aceite":2.9,"combustible":3209.4,"velocidad":48.3,"carga":185.5,"vibracion":9.3,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Prueba","correcto":0},{"id":"CAM-131","modelo":"Hitachi EH5000","anio":2011,"horas_op":7775,"temp_motor":124.0,"presion_aceite":6.0,"combustible":3525.3,"velocidad":28.7,"carga":218.9,"vibracion":4.8,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-132","modelo":"Caterpillar 797F","anio":2015,"horas_op":3746,"temp_motor":125.4,"presion_aceite":5.1,"combustible":3005.8,"velocidad":16.2,"carga":186.1,"vibracion":10.0,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-133","modelo":"Hitachi EH5000","anio":2017,"horas_op":20663,"temp_motor":75.3,"presion_aceite":2.8,"combustible":1005.9,"velocidad":47.6,"carga":264.6,"vibracion":8.9,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-134","modelo":"Komatsu 960E","anio":2014,"horas_op":4492,"temp_motor":77.9,"presion_aceite":4.2,"combustible":3015.2,"velocidad":30.6,"carga":133.3,"vibracion":10.9,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Prueba","correcto":1},{"id":"CAM-135","modelo":"Terex MT6300","anio":2013,"horas_op":24045,"temp_motor":83.6,"presion_aceite":4.2,"combustible":2346.3,"velocidad":20.8,"carga":225.0,"vibracion":8.1,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-136","modelo":"Terex MT6300","anio":2018,"horas_op":17124,"temp_motor":122.2,"presion_aceite":4.5,"combustible":125.9,"velocidad":49.3,"carga":113.1,"vibracion":5.0,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Prueba","correcto":1},{"id":"CAM-137","modelo":"Caterpillar 797F","anio":2015,"horas_op":8401,"temp_motor":119.0,"presion_aceite":5.0,"combustible":2931.6,"velocidad":43.1,"carga":199.8,"vibracion":1.0,"estado_real":"Operativo Normal","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-138","modelo":"BelAZ 75710","anio":2017,"horas_op":23286,"temp_motor":103.7,"presion_aceite":3.2,"combustible":553.7,"velocidad":42.2,"carga":383.1,"vibracion":0.9,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-139","modelo":"Liebherr T 282C","anio":2014,"horas_op":17388,"temp_motor":98.9,"presion_aceite":5.8,"combustible":1818.1,"velocidad":11.6,"carga":294.1,"vibracion":3.8,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Prueba","correcto":0},{"id":"CAM-140","modelo":"Liebherr T 282C","anio":2014,"horas_op":4578,"temp_motor":123.0,"presion_aceite":4.2,"combustible":1544.1,"velocidad":29.8,"carga":386.9,"vibracion":4.4,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Prueba","correcto":1},{"id":"CAM-141","modelo":"Terex MT6300","anio":2014,"horas_op":3207,"temp_motor":118.6,"presion_aceite":2.8,"combustible":2300.2,"velocidad":47.0,"carga":263.6,"vibracion":4.2,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-142","modelo":"Hitachi EH5000","anio":2019,"horas_op":24016,"temp_motor":100.6,"presion_aceite":5.3,"combustible":1363.0,"velocidad":11.9,"carga":361.0,"vibracion":4.5,"estado_real":"Operativo Normal","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Prueba","correcto":0},{"id":"CAM-143","modelo":"Caterpillar 797F","anio":2020,"horas_op":21390,"temp_motor":99.4,"presion_aceite":4.5,"combustible":2850.9,"velocidad":17.2,"carga":109.3,"vibracion":10.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-144","modelo":"Caterpillar 797F","anio":2013,"horas_op":21640,"temp_motor":97.0,"presion_aceite":4.0,"combustible":2168.7,"velocidad":37.2,"carga":303.7,"vibracion":11.4,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Urgente","confianza":0.6,"conjunto":"Prueba","correcto":1},{"id":"CAM-145","modelo":"Komatsu 960E","anio":2018,"horas_op":12524,"temp_motor":98.9,"presion_aceite":5.1,"combustible":982.3,"velocidad":15.1,"carga":320.7,"vibracion":6.2,"estado_real":"Operativo Normal","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-146","modelo":"Liebherr T 282C","anio":2021,"horas_op":15123,"temp_motor":87.9,"presion_aceite":5.0,"combustible":2642.0,"velocidad":54.9,"carga":160.1,"vibracion":2.1,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":1.0,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-147","modelo":"Caterpillar 797F","anio":2022,"horas_op":22845,"temp_motor":133.1,"presion_aceite":6.5,"combustible":2544.4,"velocidad":41.9,"carga":265.0,"vibracion":3.8,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-148","modelo":"BelAZ 75710","anio":2012,"horas_op":12345,"temp_motor":105.5,"presion_aceite":3.0,"combustible":800.7,"velocidad":16.2,"carga":337.1,"vibracion":0.8,"estado_real":"Mantenimiento Urgente","prediccion_knn":"Mantenimiento Próximo","confianza":0.4,"conjunto":"Entrenamiento","correcto":0},{"id":"CAM-149","modelo":"Komatsu 960E","anio":2019,"horas_op":3325,"temp_motor":78.9,"presion_aceite":4.1,"combustible":2727.7,"velocidad":31.5,"carga":223.2,"vibracion":5.2,"estado_real":"Operativo Normal","prediccion_knn":"Operativo Normal","confianza":0.8,"conjunto":"Entrenamiento","correcto":1},{"id":"CAM-150","modelo":"BelAZ 75710","anio":2011,"horas_op":15244,"temp_motor":102.9,"presion_aceite":4.6,"combustible":529.3,"velocidad":47.3,"carga":265.4,"vibracion":7.3,"estado_real":"Mantenimiento Próximo","prediccion_knn":"Mantenimiento Próximo","confianza":0.6,"conjunto":"Entrenamiento","correcto":1}];
+
+const STATE_COLOR={'Operativo Normal':'#00e676','Mantenimiento Próximo':'#ffab00','Mantenimiento Urgente':'#ff3d71'};
+const STATE_BG={'Operativo Normal':'rgba(0,230,118,0.15)','Mantenimiento Próximo':'rgba(255,171,0,0.15)','Mantenimiento Urgente':'rgba(255,61,113,0.15)'};
+const MODELOS=['BelAZ 75710','Caterpillar 797F','Hitachi EH5000','Komatsu 960E','Liebherr T 282C','Terex MT6300'];
+Chart.defaults.color='#6b7594';Chart.defaults.borderColor='#1e2538';Chart.defaults.font.family="'Space Mono',monospace";Chart.defaults.font.size=10;
+
+let filtered=[...RAW],page=0,_sortCol='id',_sortDir=1;
+const PAGE_SIZE=25,charts={};
+
+function statusPill(s){if(!s)return '';if(s.includes('Urgente'))return`<span class="status-pill pill-urgente">URG</span>`;if(s.includes('Próximo'))return`<span class="status-pill pill-proximo">PRX</span>`;return`<span class="status-pill pill-normal">NRM</span>`;}
+function confBar(v){const p=Math.round(v*100);return`${p}% <span class="conf-bar-bg"><span class="conf-bar-fill" style="width:${p}%"></span></span>`;}
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+function applyFilters(){
+  const m=document.getElementById('fModelo').value,e=document.getElementById('fEstado').value,
+        c=document.getElementById('fConjunto').value,r=document.getElementById('fResultado').value,
+        s=document.getElementById('fSearch').value.toLowerCase();
+  filtered=RAW.filter(x=>{
+    if(m&&x.modelo!==m)return false;if(e&&x.estado_real!==e)return false;
+    if(c&&x.conjunto!==c)return false;if(r!==''&&String(x.correcto)!==r)return false;
+    if(s&&!x.id.toLowerCase().includes(s))return false;return true;
+  });
+  page=0;updateAll();
+}
+function resetFilters(){['fModelo','fEstado','fConjunto','fResultado'].forEach(id=>document.getElementById(id).value='');document.getElementById('fSearch').value='';applyFilters();}
+
+function updateAll(){updateKPIs();updateTable();updateChartDist();updateChartModelo();updateChartConf();updateChartScatter();updateChartHoras();updateMatrix();updateChartAnio();}
+
+function updateKPIs(){
+  const n=filtered.length,ok=filtered.filter(r=>r.correcto).length;
+  document.getElementById('kpi-total').textContent=n;
+  document.getElementById('kpi-acc').textContent=n?(ok/n*100).toFixed(1)+'%':'—';
+  document.getElementById('kpi-acc-sub').textContent=`${ok} / ${n} correctos`;
+  document.getElementById('kpi-normal').textContent=filtered.filter(r=>r.estado_real==='Operativo Normal').length;
+  document.getElementById('kpi-proximo').textContent=filtered.filter(r=>r.estado_real==='Mantenimiento Próximo').length;
+  document.getElementById('kpi-urgente').textContent=filtered.filter(r=>r.estado_real==='Mantenimiento Urgente').length;
+}
+
+function sortTable(col){
+  if(_sortCol===col)_sortDir*=-1;else{_sortCol=col;_sortDir=1;}
+  document.querySelectorAll('thead th').forEach(th=>{th.classList.remove('sort-asc','sort-desc');if(th.dataset.col===col)th.classList.add(_sortDir>0?'sort-asc':'sort-desc');});
+  filtered.sort((a,b)=>{let va=a[col],vb=b[col];if(typeof va==='string')return va.localeCompare(vb)*_sortDir;return(va-vb)*_sortDir;});
+  page=0;updateTable();
+}
+function changePage(d){const max=Math.ceil(filtered.length/PAGE_SIZE)-1;page=Math.max(0,Math.min(max,page+d));updateTable();}
+
+function updateTable(){
+  const start=page*PAGE_SIZE,end=Math.min(start+PAGE_SIZE,filtered.length);
+  document.getElementById('table-count').textContent=`${filtered.length} registros`;
+  document.getElementById('page-info').textContent=`Mostrando ${start+1}–${end} de ${filtered.length}`;
+  const max=Math.max(0,Math.ceil(filtered.length/PAGE_SIZE)-1);
+  document.getElementById('btn-prev').disabled=page===0;
+  document.getElementById('btn-next').disabled=page>=max;
+  document.getElementById('tableBody').innerHTML=filtered.slice(start,end).map(r=>`
+    <tr class="${r.correcto?'':'incorrect'}">
+      <td class="id-col">${r.id}</td><td>${r.modelo}</td><td>${r.anio}</td>
+      <td>${r.horas_op.toLocaleString()}</td><td>${r.temp_motor.toFixed(1)}</td>
+      <td>${r.presion_aceite.toFixed(1)}</td><td>${r.vibracion.toFixed(1)}</td>
+      <td>${statusPill(r.estado_real)} ${r.estado_real}</td>
+      <td>${statusPill(r.prediccion_knn)} ${r.prediccion_knn}</td>
+      <td>${confBar(r.confianza)}</td>
+      <td style="color:${r.conjunto==='Prueba'?'#00d4ff':'#a78bfa'}">${r.conjunto}</td>
+      <td>${r.correcto?'✅':'❌'}</td>
+    </tr>`).join('');
+}
+
+function updateChartDist(){
+  destroyChart('dist');
+  const states=['Operativo Normal','Mantenimiento Próximo','Mantenimiento Urgente'];
+  document.getElementById('ct-dist-n').textContent=filtered.length;
+  charts['dist']=new Chart(document.getElementById('chartDist'),{
+    type:'doughnut',
+    data:{labels:['Normal','Próximo','Urgente'],datasets:[{data:states.map(s=>filtered.filter(r=>r.estado_real===s).length),
+      backgroundColor:states.map(s=>STATE_BG[s]),borderColor:states.map(s=>STATE_COLOR[s]),borderWidth:2,hoverOffset:4}]},
+    options:{responsive:true,cutout:'60%',plugins:{legend:{position:'bottom',labels:{padding:12,usePointStyle:true,pointStyleWidth:8}},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw} (${(ctx.raw/filtered.length*100).toFixed(1)}%)`}}}}
+  });
+}
+
+function updateChartModelo(){
+  destroyChart('modelo');
+  document.getElementById('ct-modelo-n').textContent=filtered.length;
+  const totals=MODELOS.map(m=>filtered.filter(r=>r.modelo===m).length);
+  const corrects=MODELOS.map(m=>filtered.filter(r=>r.modelo===m&&r.correcto).length);
+  charts['modelo']=new Chart(document.getElementById('chartModelo'),{
+    type:'bar',
+    data:{labels:MODELOS,datasets:[
+      {label:'Correctos',data:corrects,backgroundColor:'rgba(0,230,118,0.6)',borderColor:'#00e676',borderWidth:1.5,borderRadius:3},
+      {label:'Incorrectos',data:totals.map((t,i)=>t-corrects[i]),backgroundColor:'rgba(255,61,113,0.4)',borderColor:'#ff3d71',borderWidth:1.5,borderRadius:3}
+    ]},
+    options:{responsive:true,indexAxis:'y',plugins:{legend:{position:'top',labels:{usePointStyle:true,pointStyleWidth:8}}},
+      scales:{x:{stacked:true,grid:{color:'rgba(30,37,56,0.8)'}},y:{stacked:true,grid:{color:'rgba(0,0,0,0)'}}}}
+  });
+}
+
+function updateChartConf(){
+  destroyChart('conf');
+  const bins=[0.4,0.6,0.8,1.0];
+  charts['conf']=new Chart(document.getElementById('chartConf'),{
+    type:'bar',
+    data:{labels:['40%','60%','80%','100%'],datasets:[{data:bins.map(b=>filtered.filter(r=>r.confianza===b).length),
+      backgroundColor:['rgba(245,166,35,0.2)','rgba(245,166,35,0.4)','rgba(245,166,35,0.65)','rgba(245,166,35,0.9)'],
+      borderColor:'#f5a623',borderWidth:1.5,borderRadius:4}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,0,0,0)'}},y:{grid:{color:'rgba(30,37,56,0.8)'}}}}
+  });
+}
+
+function updateChartScatter(){
+  destroyChart('scatter');
+  const states=['Operativo Normal','Mantenimiento Próximo','Mantenimiento Urgente'];
+  document.getElementById('ct-scatter-n').textContent=filtered.length;
+  charts['scatter']=new Chart(document.getElementById('chartScatter'),{
+    type:'scatter',
+    data:{datasets:states.map(s=>({label:s,data:filtered.filter(r=>r.estado_real===s).map(r=>({x:r.temp_motor,y:r.vibracion,id:r.id})),
+      backgroundColor:STATE_BG[s],borderColor:STATE_COLOR[s],borderWidth:1.2,pointRadius:5,pointHoverRadius:7}))},
+    options:{responsive:true,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.raw.id}: Temp ${ctx.raw.x}°C, Vib ${ctx.raw.y}`}}},
+      scales:{x:{title:{display:true,text:'Temperatura Motor (°C)',color:'#6b7594'},grid:{color:'rgba(30,37,56,0.8)'}},
+        y:{title:{display:true,text:'Vibración',color:'#6b7594'},grid:{color:'rgba(30,37,56,0.8)'}}}}
+  });
+}
+
+function updateChartHoras(){
+  destroyChart('horas');
+  const states=['Operativo Normal','Mantenimiento Próximo','Mantenimiento Urgente'];
+  const avgs=states.map(s=>{const a=filtered.filter(r=>r.estado_real===s);return a.length?Math.round(a.reduce((x,b)=>x+b.horas_op,0)/a.length):0;});
+  charts['horas']=new Chart(document.getElementById('chartHoras'),{
+    type:'bar',
+    data:{labels:['Normal','Próximo','Urgente'],datasets:[{label:'Horas Op. Promedio',data:avgs,
+      backgroundColor:states.map(s=>STATE_BG[s]),borderColor:states.map(s=>STATE_COLOR[s]),borderWidth:1.5,borderRadius:4}]},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(0,0,0,0)'}},y:{grid:{color:'rgba(30,37,56,0.8)'},ticks:{callback:v=>(v/1000).toFixed(0)+'k'}}}}
+  });
+}
+
+function updateChartAnio(){
+  destroyChart('anio');
+  const years=[...new Set(RAW.map(r=>r.anio))].sort();
+  const states=['Operativo Normal','Mantenimiento Próximo','Mantenimiento Urgente'];
+  const short=['Normal','Próximo','Urgente'];
+  charts['anio']=new Chart(document.getElementById('chartAnio'),{
+    type:'bar',
+    data:{labels:years,datasets:states.map((s,i)=>({label:short[i],
+      data:years.map(y=>filtered.filter(r=>r.anio===y&&r.estado_real===s).length),
+      backgroundColor:STATE_BG[s],borderColor:STATE_COLOR[s],borderWidth:1.5,borderRadius:2}))},
+    options:{responsive:true,plugins:{legend:{position:'top',labels:{usePointStyle:true,pointStyleWidth:8}}},
+      scales:{x:{stacked:true,grid:{color:'rgba(0,0,0,0)'}},y:{stacked:true,grid:{color:'rgba(30,37,56,0.8)'}}}}
+  });
+}
+
+function updateMatrix(){
+  const classes=['Operativo Normal','Mantenimiento Próximo','Mantenimiento Urgente'];
+  const short=['Normal','Próximo','Urgente'];
+  const mx=classes.map(r=>classes.map(p=>filtered.filter(x=>x.estado_real===r&&x.prediccion_knn===p).length));
+  const maxV=Math.max(...mx.flat(),1);
+  let h=`<div class="matrix-grid"><div class="matrix-cell"></div>`;
+  short.forEach(c=>h+=`<div class="matrix-cell matrix-header">${c}</div>`);
+  mx.forEach((row,i)=>{
+    h+=`<div class="matrix-cell matrix-row-header">${short[i]}</div>`;
+    row.forEach((v,j)=>{const diag=i===j;const col=diag?STATE_COLOR[classes[i]]:'#ff3d71';
+      h+=`<div class="matrix-cell matrix-data ${diag?'diag':''}" style="background:${diag?STATE_BG[classes[i]]:`rgba(255,61,113,${v/maxV*0.3})`};color:${col}">${v}</div>`;
+    });
+  });
+  h+=`</div><div style="margin-top:8px;font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:1.5px;text-align:center">eje X: predicción · eje Y: real</div>`;
+  document.getElementById('confMatrix').innerHTML=h;
+}
+
+updateAll();
+</script>
+</body>
+</html>
