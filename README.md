@@ -1,8 +1,6 @@
 # Practical Guide to Business Intelligence
 **End-to-End Project Development: From Business Problem to Actionable Insights**
 
-<grok-card data-id="f37316" data-type="image_card" data-plain-type="BI.png"  data-arg-image_id="yKk4X"  data-arg-size="LARGE" ></grok-card>
-
 ## Objective
 
 This repository provides a **comprehensive yet actionable** practical guide to the entire **Business Intelligence (BI)** lifecycle.
@@ -11,13 +9,13 @@ The goal is to equip students, data analysts, data scientists, and business prof
 
 You will learn how to move step-by-step from:
 
-- **Problem identification** →
-- **Data understanding & mining** →
-- **Dataset construction & preparation** →
-- **Exploratory analysis** →
-- **Machine Learning model development & evaluation** →
-- **Prediction generation** →
-- **Interpretation of insights** ("revelations") →
+- **Problem identification** 
+- **Data understanding & mining** 
+- **Dataset construction & preparation** 
+- **Exploratory analysis** 
+- **Machine Learning model development & evaluation** 
+- **Prediction generation** 
+- **Interpretation of insights** ("revelations")
 - **Actionable recommendations**
 
 ## 📚 What You'll Find in This Repository
